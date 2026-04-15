@@ -103,7 +103,7 @@ jobs:
         with:
           target: "http://localhost:5000"
           fail_action: false   # ne bloque pas le pipeline (vulnérabilités intentionnelles)
-          artifact_name: zap-report
+          artifact_name: zap_report
 
       - name: Stop app container
         if: always()
