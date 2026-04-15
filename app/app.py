@@ -8,6 +8,7 @@ app.secret_key = "supersecretkey"  # Intentionally weak secret key
 # Initialize the database on startup
 init_db()
 
+
 def get_db():
     """Connect to the SQLite database."""
     conn = sqlite3.connect("users.db")
