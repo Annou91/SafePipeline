@@ -1,22 +1,33 @@
+# SafePipeline — Wazuh single-node stack
+#
+# IMPORTANT: Generate SSL certs first (one-time setup):
+#   docker compose -f generate-certs.yml run --rm generator
+#
+# Then start the stack:
+#   docker compose up -d
+#
+# Dashboard: https://localhost:443  (admin / SecretPassword)
+
 services:
 
-  # -------------------------------------------------------------------
-  # Wazuh Manager — receives logs and generates alerts
-  # -------------------------------------------------------------------
-  wazuh-manager:
+  wazuh.manager:
     image: wazuh/wazuh-manager:4.7.3
-    hostname: wazuh-manager
+    hostname: wazuh.manager
     restart: always
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 655360
+        hard: 655360
     ports:
-      - "1514:1514"       # agent communication (UDP)
-      - "1515:1515"       # agent enrollment
-      - "55000:55000"     # Wazuh API
-    volumes:
-      - wazuh_data:/var/ossec/data
-      - ./custom-rules.xml:/var/ossec/etc/rules/custom-safepipeline.xml:ro
-      - app_logs:/var/log/safepipeline:ro   # Flask app logs
+      - "1514:1514"
+      - "1515:1515"
+      - "514:514/udp"
+      - "55000:55000"
     environment:
-      - INDEXER_URL=https://wazuh-indexer:9200
+      - INDEXER_URL=https://wazuh.indexer:9200
       - INDEXER_USERNAME=admin
       - INDEXER_PASSWORD=SecretPassword
       - FILEBEAT_SSL_VERIFICATION_MODE=full
@@ -25,48 +36,79 @@ services:
       - SSL_KEY=/etc/ssl/filebeat.key
       - API_USERNAME=wazuh-wui
       - API_PASSWORD=MyS3cr37P450r.*-
+    volumes:
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+      - filebeat_etc:/etc/filebeat
+      - filebeat_var:/var/lib/filebeat
+      - ./config/wazuh_indexer_ssl_certs/root-ca-manager.pem:/etc/ssl/root-ca.pem
+      - ./config/wazuh_indexer_ssl_certs/wazuh.manager.pem:/etc/ssl/filebeat.pem
+      - ./config/wazuh_indexer_ssl_certs/wazuh.manager-key.pem:/etc/ssl/filebeat.key
+      - ./custom-rules.xml:/var/ossec/etc/rules/custom-safepipeline.xml:ro
 
-  # -------------------------------------------------------------------
-  # Wazuh Indexer — stores and indexes alerts (OpenSearch)
-  # -------------------------------------------------------------------
-  wazuh-indexer:
+  wazuh.indexer:
     image: wazuh/wazuh-indexer:4.7.3
-    hostname: wazuh-indexer
+    hostname: wazuh.indexer
     restart: always
     ports:
       - "9200:9200"
     environment:
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - wazuh_indexer_data:/var/lib/wazuh-indexer
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      - ./config/wazuh_indexer_ssl_certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem
+      - ./config/wazuh_indexer_ssl_certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.key
+      - ./config/wazuh_indexer_ssl_certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem
+      - ./config/wazuh_indexer_ssl_certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem
+      - ./config/wazuh_indexer_ssl_certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem
+      - ./config/wazuh.indexer/wazuh.yml:/usr/share/wazuh-indexer/opensearch.yml
 
-  # -------------------------------------------------------------------
-  # Wazuh Dashboard — visualization UI (Kibana-like)
-  # -------------------------------------------------------------------
-  wazuh-dashboard:
+  wazuh.dashboard:
     image: wazuh/wazuh-dashboard:4.7.3
-    hostname: wazuh-dashboard
+    hostname: wazuh.dashboard
     restart: always
     ports:
-      - "5601:5601"       # access at http://localhost:5601
+      - "443:5601"
     environment:
       - INDEXER_USERNAME=admin
       - INDEXER_PASSWORD=SecretPassword
-      - WAZUH_API_URL=https://wazuh-manager
+      - WAZUH_API_URL=https://wazuh.manager
       - DASHBOARD_USERNAME=kibanaserver
       - DASHBOARD_PASSWORD=kibanaserver
       - API_USERNAME=wazuh-wui
       - API_PASSWORD=MyS3cr37P450r.*-
+    volumes:
+      - ./config/wazuh_indexer_ssl_certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem
+      - ./config/wazuh_indexer_ssl_certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem
+      - ./config/wazuh_indexer_ssl_certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem
+      - ./config/opensearch_dashboards/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
     depends_on:
-      - wazuh-indexer
-      - wazuh-manager
+      - wazuh.indexer
 
 volumes:
-  wazuh_data:
-  wazuh_indexer_data:
-  app_logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ../../logs   # shared with the Flask app
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:
+  filebeat_etc:
+  filebeat_var:
+  wazuh-indexer-data:
