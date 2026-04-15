@@ -2,7 +2,7 @@
 
 ### **A complete DevSecOps platform — Build. Scan. Deploy. Defend.**
 
-| Rôle | Responsabilités principales |
+| ID Github | Role |
 |------|----------------------------|
 | @annou91 | App, Docker, CI/CD, Kubernetes, Terraform |
 | @tisssam | Wazuh, Fail2Ban, OWASP ZAP, simulations d’attaques |
