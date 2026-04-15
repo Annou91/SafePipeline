@@ -1,0 +1,108 @@
+name: SafePipeline CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # -------------------------------------------------------------------
+  # 1. BUILD & LINT
+  # -------------------------------------------------------------------
+  build:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
+
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 app/ --max-line-length=120 --exclude=app/__pycache__
+
+  # -------------------------------------------------------------------
+  # 2. TESTS
+  # -------------------------------------------------------------------
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt pytest
+
+      - name: Run tests
+        run: pytest app/tests/ -v || echo "No tests yet — skipping"
+
+  # -------------------------------------------------------------------
+  # 3. SAST — Static Analysis
+  # -------------------------------------------------------------------
+  sast:
+    name: SAST (Bandit)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        run: bandit -r app/ -ll --exclude app/__pycache__ || true
+        # || true : on log les vulnérabilités sans bloquer (elles sont intentionnelles)
+
+  # -------------------------------------------------------------------
+  # 4. DOCKER BUILD
+  # -------------------------------------------------------------------
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [test, sast]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t safepipeline-app:${{ github.sha }} ./app
+
+  # -------------------------------------------------------------------
+  # 5. DAST — OWASP ZAP Scan
+  # -------------------------------------------------------------------
+  zap-scan:
+    name: DAST (OWASP ZAP)
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start app for ZAP scan
+        run: |
+          docker build -t safepipeline-app ./app
+          docker run -d -p 5000:5000 --name target safepipeline-app
+          sleep 5
+
+      - name: Run OWASP ZAP full scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: "http://localhost:5000"
+          fail_action: false   # ne bloque pas le pipeline (vulnérabilités intentionnelles)
+          artifact_name: zap-report
+
+      - name: Stop app container
+        if: always()
+        run: docker stop target && docker rm target

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SafePipeline — Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 60px auto; }
+        .alert { background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <h2>Welcome, {{ user }} 👋</h2>
+    <p><a href="/logout">Logout</a></p>
+
+    {% if message %}
+    <!-- INTENTIONAL VULNERABILITY: XSS — message is rendered without escaping -->
+    <div class="alert">
+        Message: {{ message | safe }}
+    </div>
+    {% endif %}
+
+    <hr/>
+    <h3>API Test</h3>
+    <p>Try: <a href="/api/users?id=1">/api/users?id=1</a></p>
+</body>
+</html>
