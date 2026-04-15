@@ -2,6 +2,12 @@
 
 ### **A complete DevSecOps platform — Build. Scan. Deploy. Defend.**
 
+| Rôle | Responsabilités principales |
+|------|----------------------------|
+| @annou91 | App, Docker, CI/CD, Kubernetes, Terraform |
+| @tisssam | Wazuh, Fail2Ban, OWASP ZAP, simulations d’attaques |
+| Responsabilité partagée | Structure du repo, Prometheus/Grafana, reviews croisées |
+
 <br/>
 
 [![CI/CD Pipeline](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
