@@ -1,5 +1,6 @@
 import sqlite3
 
+
 def init_db():
     """Create the SQLite database and insert test users."""
     conn = sqlite3.connect("users.db")
@@ -23,6 +24,7 @@ def init_db():
     conn.commit()
     conn.close()
     print("Database initialized.")
+
 
 if __name__ == "__main__":
     init_db()
