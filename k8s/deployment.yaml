@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: safepipeline-app
+  labels:
+    app: safepipeline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: safepipeline
+  template:
+    metadata:
+      labels:
+        app: safepipeline
+    spec:
+      containers:
+        - name: safepipeline-app
+          image: safepipeline-app:latest
+          imagePullPolicy: Never   # use local image (minikube)
+          ports:
+            - containerPort: 5000
