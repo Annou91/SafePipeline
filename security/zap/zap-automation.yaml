@@ -1,0 +1,66 @@
+---
+# OWASP ZAP Automation Framework config for SafePipeline
+# Docs: https://www.zaproxy.org/docs/automate/automation-framework/
+
+env:
+  contexts:
+    - name: "SafePipeline"
+      urls:
+        - "http://localhost:5000"
+      includePaths:
+        - "http://localhost:5000.*"
+      authentication:
+        method: "form"
+        parameters:
+          loginPageUrl: "http://localhost:5000/login"
+          loginRequestData: "username={%username%}&password={%password%}"
+        verification:
+          method: "response"
+          loggedInRegex: "Welcome"
+          loggedOutRegex: "Login"
+      users:
+        - name: "admin"
+          credentials:
+            username: "admin"
+            password: "admin123"
+
+  parameters:
+    failOnError: false
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  # 1. Spider — discover all URLs
+  - type: spider
+    parameters:
+      context: "SafePipeline"
+      user: "admin"
+      maxDuration: 2
+      maxDepth: 5
+
+  # 2. Ajax Spider — for JS-heavy pages
+  - type: spiderAjax
+    parameters:
+      context: "SafePipeline"
+      maxDuration: 2
+
+  # 3. Active Scan — test all found URLs for vulnerabilities
+  - type: activeScan
+    parameters:
+      context: "SafePipeline"
+      user: "admin"
+      policy: "Default Policy"
+
+  # 4. Reports — generate HTML and JSON
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "./reports"
+      reportFile: "zap-report"
+      reportTitle: "SafePipeline Security Report"
+      reportDescription: "DAST scan results for the SafePipeline vulnerable app"
+    risks:
+      - high
+      - medium
+      - low
+      - informational
