@@ -1,0 +1,33 @@
+[DEFAULT]
+# Ban duration: 10 minutes
+bantime  = 600
+# Time window to count failures
+findtime = 60
+# Max failures before ban
+maxretry = 5
+# Ban action: drop packets from the IP
+banaction = iptables-multiport
+
+# -------------------------------------------------------------------
+# SafePipeline Flask app — brute force on /login
+# -------------------------------------------------------------------
+[safepipeline-auth]
+enabled  = true
+port     = 5000
+filter   = safepipeline-auth
+logpath  = /var/log/safepipeline/app.log
+maxretry = 5
+findtime = 60
+bantime  = 600
+
+# -------------------------------------------------------------------
+# SafePipeline Flask app — SQL injection attempts on /api/users
+# -------------------------------------------------------------------
+[safepipeline-sqli]
+enabled  = true
+port     = 5000
+filter   = safepipeline-sqli
+logpath  = /var/log/safepipeline/app.log
+maxretry = 3
+findtime = 60
+bantime  = 3600   # 1 hour ban for SQLi

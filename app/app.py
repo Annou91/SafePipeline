@@ -1,9 +1,32 @@
-from flask import Flask, request, session, redirect, url_for, render_template
+import json
+import logging
+import os
 import sqlite3
+
+from flask import Flask, request, session, redirect, url_for, render_template
 from database import init_db
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"  # Intentionally weak secret key
+
+# -------------------------------------------------------------------
+# Logging — structured JSON logs for Wazuh and Fail2Ban
+# -------------------------------------------------------------------
+os.makedirs("/var/log/safepipeline", exist_ok=True)
+
+logging.basicConfig(
+    filename="/var/log/safepipeline/app.log",
+    level=logging.INFO,
+    format="%(message)s",
+)
+security_logger = logging.getLogger("security")
+
+
+def log_event(event, **kwargs):
+    entry = {"app": "safepipeline", "event": event, "src_ip": request.remote_addr}
+    entry.update(kwargs)
+    security_logger.info(json.dumps(entry))
+
 
 # Initialize the database on startup
 init_db()
@@ -37,9 +60,11 @@ def login():
         conn.close()
 
         if user:
+            log_event("login_success", username=username)
             session["user"] = username
             return redirect(url_for("dashboard"))
         else:
+            log_event("login_failed", username=username)
             error = "Invalid credentials"
 
     return render_template("login.html", error=error)
@@ -56,6 +81,8 @@ def dashboard():
     # INTENTIONAL VULNERABILITY: XSS
     # User input reflected directly into the page without escaping
     message = request.args.get("message", "")
+    if message:
+        log_event("xss_attempt", payload=message)
     return render_template("dashboard.html", user=session["user"], message=message)
 
 
@@ -65,6 +92,11 @@ def dashboard():
 @app.route("/api/users")
 def get_user():
     user_id = request.args.get("id", "")
+
+    # Detect obvious SQLi patterns
+    sqli_patterns = ["'", '"', "--", ";", "OR", "UNION", "SELECT", "DROP"]
+    if any(p.lower() in user_id.lower() for p in sqli_patterns):
+        log_event("sqli_attempt", param="id", value=user_id)
 
     conn = get_db()
     cursor = conn.cursor()
