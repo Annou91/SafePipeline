@@ -202,6 +202,8 @@ SafePipeline/
 │       └── pipeline.yml    # CI/CD pipeline definition
 │
 └── docs/                   # Architecture diagrams & documentation
+    ├── SafePipeline_Documentation_Complete.md  # Full educational guide (EN)
+    └── ATTACK_RUNBOOK.md   # Step-by-step attack reproduction guide
 ```
 
 ---
@@ -215,47 +217,88 @@ SafePipeline/
 - Terraform ≥ 1.3
 - A GitHub account (for Actions)
 
-### 1. Clone the repository
+### Quick Start — Run Locally in 60 Seconds
+
+The entire stack runs on your local machine. No cloud account required.
 
 ```bash
-git clone https://github.com/<your-username>/SafePipeline.git
+# 1. Clone the repository
+git clone https://github.com/Annou91/SafePipeline.git
 cd SafePipeline
+
+# 2. Build and start the vulnerable app
+docker build -t safepipeline-app ./app
+docker run -d -p 5000:5000 --name safepipeline safepipeline-app
+
+# 3. Open in your browser
+# http://localhost:5000/login
+# Test credentials: admin / admin123
 ```
 
-### 2. Configure environment variables
+### Full Stack (App + Monitoring)
 
 ```bash
-cp .env.example .env
-# Edit .env with your settings (DB credentials, cluster endpoint, etc.)
+# Start the app
+docker run -d -p 5000:5000 --name safepipeline safepipeline-app
+
+# Start Prometheus + Grafana
+cd monitoring/
+docker compose up -d
+
+# Access points:
+# App       → http://localhost:5000
+# Prometheus → http://localhost:9090
+# Grafana    → http://localhost:3000  (admin / admin)
 ```
 
-### 3. Provision infrastructure
+### Full Stack with Security (+ Wazuh SIEM)
+
+> Requires 8 GB RAM allocated to Docker
 
 ```bash
+cd security/wazuh/
+docker compose up -d
+# Wazuh Dashboard → https://localhost  (admin / SecretPassword)
+```
+
+### Kubernetes Deployment (Minikube)
+
+```bash
+# 1. Start minikube
+minikube start
+
+# 2. Load the Docker image
+minikube image load safepipeline-app:latest
+
+# 3. Provision namespaces with Terraform
 cd infra/
 terraform init
 terraform apply
-```
 
-### 4. Deploy to Kubernetes
-
-```bash
+# 4. Deploy to Kubernetes
 kubectl apply -f k8s/
 kubectl get pods -w
+
+# 5. Get the app URL
+minikube service safepipeline-service --url
 ```
 
-### 5. Start the monitoring stack
+### Run the Full Pipeline Locally (Without GitHub Actions)
 
 ```bash
-kubectl apply -f monitoring/
-# Access Grafana at http://<cluster-ip>:3000
-```
+# Lint
+pip install flake8 && flake8 app/ --max-line-length=120
 
-### 6. Access the application
+# SAST
+pip install bandit && bandit -r app/ -ll
 
-```bash
-kubectl get ingress
-# Navigate to the displayed external IP
+# Docker build
+docker build -t safepipeline-app:local ./app
+
+# DAST (ZAP) — requires the app to be running on port 5000
+docker run --rm -v $(pwd):/zap/wrk/:rw --network=host \
+  ghcr.io/zaproxy/zaproxy:stable \
+  zap-full-scan.py -t http://localhost:5000 -r report_html.html -I
 ```
 
 ---
