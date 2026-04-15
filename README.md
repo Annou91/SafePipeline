@@ -319,17 +319,6 @@ All scripts are located in `/security/attacks/` and must be run against a **loca
 
 ---
 
-## 👥 Team
-
-| GitHub | Role | Responsibilities |
-|--------|------|-----------------|
-| [@Annou91](https://github.com/Annou91) | Developer | Flask app, Docker, CI/CD pipeline, Kubernetes, Terraform |
-| [@tisssam](https://github.com/tisssam) | Security Engineer | Wazuh, Fail2Ban, OWASP ZAP, attack simulations, log analysis |
-
-*Shared:* Prometheus/Grafana, architecture design, documentation, peer reviews.
-
----
-
 ## 📄 License
 
 This project is intended for **educational purposes only**.  
