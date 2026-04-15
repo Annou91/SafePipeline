@@ -1,15 +1,10 @@
+# SafePipeline
+
 <div align="center">
 
-### **A complete DevSecOps platform — Build. Scan. Deploy. Defend.**
+**End-to-end DevSecOps lab — Build. Scan. Deploy. Defend.**
 
-| GitHub ID | Role |
-|-----------|------|
-| @annou91 | App development, Docker, CI/CD, Kubernetes, Terraform |
-| @tisssam | Wazuh, Fail2Ban, OWASP ZAP, attack simulations |
-| Shared responsibility | Repository structure, Prometheus/Grafana, peer reviews |
-
-<br/>
-
+[![CI Status](https://github.com/Annou91/SafePipeline/actions/workflows/pipeline.yml/badge.svg)](https://github.com/Annou91/SafePipeline/actions/workflows/pipeline.yml)
 [![CI/CD Pipeline](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Docker](https://img.shields.io/badge/Container-Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
@@ -21,7 +16,7 @@
 
 <br/>
 
-> ⚠️ **Educational project** — This application contains intentional vulnerabilities for security research and learning. **Do not deploy in production.**
+> ⚠️ **Educational project** — Contains intentional vulnerabilities for security learning. **Do not deploy in production.**
 
 </div>
 
@@ -107,22 +102,22 @@ Infrastructure is provisioned via **Terraform**. All Kubernetes resources are de
 
 ## ⚙️ CI/CD Pipeline
 
-Every `git push` to the main branch triggers the full pipeline:
+Every `git push` to `main` (or any PR targeting `main`) triggers the full pipeline:
 
 ```
-┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-│ 1. Build  │ → │ 2. Tests  │ → │ 3. Scan   │ → │ 4. Docker │ → │ 5. Deploy │
-│           │   │ (pytest)  │   │ SAST+ZAP  │   │   Build   │   │  to K8s  │
-└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐   ┌──────────────┐
+│ 1. Build  │ → │ 2. Tests  │ → │  3. SAST  │ → │  4. Docker   │ → │  5. DAST     │
+│ + Lint    │   │ (pytest)  │   │ (Bandit)  │   │    Build     │   │ (OWASP ZAP)  │
+└──────────┘   └──────────┘   └──────────┘   └──────────────┘   └──────────────┘
 ```
 
-1. **Build** — Install dependencies, compile assets
-2. **Tests** — Unit and integration tests
-3. **Security Scan** — SAST static analysis + OWASP ZAP DAST scan against a staging instance
-4. **Docker Build** — Build and tag the container image
-5. **Deploy** — Apply Kubernetes manifests with zero-downtime rollout
+1. **Build & Lint** — Install dependencies, run `flake8` code quality checks
+2. **Tests** — Run `pytest` unit tests
+3. **SAST** — Static code analysis with Bandit (detects SQLi patterns, weak crypto, hardcoded secrets)
+4. **Docker Build** — Build and tag the container image with the commit SHA
+5. **DAST** — Launch the app in Docker, run OWASP ZAP full scan, upload HTML/JSON/MD reports as artifacts
 
-> ZAP scan reports are automatically uploaded as GitHub Actions artifacts on every run.
+> ZAP reports are available in the **Actions → Artifacts** tab after every run.
 
 ---
 
@@ -173,37 +168,41 @@ Prometheus scrapes metrics from the application and cluster nodes. Grafana provi
 ```
 SafePipeline/
 │
-├── app/                    # Web application source code
-│   ├── src/
-│   ├── tests/
+├── app/                         # Flask web application (the target)
+│   ├── app.py                   # Routes + intentional vulnerabilities (SQLi, XSS)
+│   ├── database.py              # SQLite initialization
+│   ├── requirements.txt
+│   ├── templates/               # HTML pages (login, dashboard)
 │   └── Dockerfile
 │
-├── k8s/                    # Kubernetes manifests
+├── k8s/                         # Kubernetes manifests
 │   ├── deployment.yaml
 │   ├── service.yaml
 │   └── ingress.yaml
 │
-├── infra/                  # Terraform configuration
-│   ├── main.tf
+├── infra/                       # Terraform (Infrastructure as Code)
+│   ├── main.tf                  # K8s namespaces provisioning
 │   ├── variables.tf
 │   └── outputs.tf
 │
-├── monitoring/             # Prometheus & Grafana setup
+├── monitoring/                  # Prometheus & Grafana stack
+│   ├── docker-compose.yml
 │   ├── prometheus.yml
-│   └── dashboards/
+│   └── dashboards/              # Pre-built Grafana dashboards (JSON)
 │
-├── security/               # Security tooling configs
-│   ├── wazuh/
-│   ├── fail2ban/
-│   └── zap/
+├── security/                    # Security tooling
+│   ├── wazuh/                   # SIEM + custom detection rules
+│   ├── fail2ban/                # IP blocking jails and filters
+│   ├── zap/                     # OWASP ZAP automation config
+│   └── attacks/                 # Controlled attack scripts
 │
 ├── .github/
 │   └── workflows/
-│       └── pipeline.yml    # CI/CD pipeline definition
+│       └── pipeline.yml         # 5-stage CI/CD pipeline
 │
-└── docs/                   # Architecture diagrams & documentation
+└── docs/
     ├── SafePipeline_Documentation_Complete.md  # Full educational guide (EN)
-    └── ATTACK_RUNBOOK.md   # Step-by-step attack reproduction guide
+    └── ATTACK_RUNBOOK.md        # Step-by-step attack reproduction
 ```
 
 ---
@@ -212,10 +211,12 @@ SafePipeline/
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- `kubectl` configured with a Kubernetes cluster (minikube, k3s, or cloud)
-- Terraform ≥ 1.3
-- A GitHub account (for Actions)
+| What you want to run | What you need |
+|---|---|
+| App only | Docker |
+| App + Monitoring | Docker + Docker Compose |
+| App + Monitoring + Wazuh | Docker + 8 GB RAM |
+| Full K8s deployment | minikube + kubectl + Terraform ≥ 1.3 |
 
 ### Quick Start — Run Locally in 60 Seconds
 
@@ -320,12 +321,12 @@ All scripts are located in `/security/attacks/` and must be run against a **loca
 
 ## 👥 Team
 
-| Role | Responsibilities |
-|---|---|
-| **Security Engineer** | Attack simulation, Wazuh setup, Fail2Ban rules, log analysis, ZAP integration |
-| **Developer** | Web application, API, unit tests, Docker, CI/CD pipeline |
+| GitHub | Role | Responsibilities |
+|--------|------|-----------------|
+| [@Annou91](https://github.com/Annou91) | Developer | Flask app, Docker, CI/CD pipeline, Kubernetes, Terraform |
+| [@tisssam](https://github.com/tisssam) | Security Engineer | Wazuh, Fail2Ban, OWASP ZAP, attack simulations, log analysis |
 
-*Shared:* Kubernetes, Terraform, architecture design, documentation.
+*Shared:* Prometheus/Grafana, architecture design, documentation, peer reviews.
 
 ---
 
