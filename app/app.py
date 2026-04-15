@@ -4,10 +4,12 @@ import os
 import sqlite3
 
 from flask import Flask, request, session, redirect, url_for, render_template
+from prometheus_flask_exporter import PrometheusMetrics
 from database import init_db
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"  # Intentionally weak secret key
+PrometheusMetrics(app)  # exposes /metrics endpoint for Prometheus
 
 # -------------------------------------------------------------------
 # Logging — structured JSON logs for Wazuh and Fail2Ban
