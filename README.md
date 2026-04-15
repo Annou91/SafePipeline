@@ -2,11 +2,11 @@
 
 ### **A complete DevSecOps platform — Build. Scan. Deploy. Defend.**
 
-| ID Github | Role |
-|------|----------------------------|
-| @annou91 | App, Docker, CI/CD, Kubernetes, Terraform |
-| @tisssam | Wazuh, Fail2Ban, OWASP ZAP, simulations d’attaques |
-| Responsabilité partagée | Structure du repo, Prometheus/Grafana, reviews croisées |
+| GitHub ID | Role |
+|-----------|------|
+| @annou91 | App development, Docker, CI/CD, Kubernetes, Terraform |
+| @tisssam | Wazuh, Fail2Ban, OWASP ZAP, attack simulations |
+| Shared responsibility | Repository structure, Prometheus/Grafana, peer reviews |
 
 <br/>
 
